@@ -1,0 +1,36 @@
+#!/usr/bin/env python
+
+#
+# Listen on all interfaces and print CDP packet information.
+#
+# Based on http://www.darkoperator.com/blog/2011/4/11/parsing-cdp-packets-with-scapy.html
+#
+
+from scapy.all import *
+
+load_contrib('cdp')
+
+def print_cdp_info(packet):
+    cdp_packet_info = {}
+    for field in packet[CDPv2_HDR].fields['msg']:
+        if field.type in _cdp_tlv_types:
+            field_type_name = _cdp_tlv_types[field.type]
+
+            if field_type_name == "Device ID":
+                cdp_packet_info[field_type_name] = field.val
+
+            if field_type_name == "Port ID":
+                cdp_packet_info[field_type_name] = field.iface
+
+    print '%s: %s' % (cdp_packet_info['Device ID'], cdp_packet_info['Port ID'])
+
+# Filter from https://wiki.wireshark.org/CDP:
+#
+# Control field: 0x03
+# Organization Code: Cisco (0x00000c)
+# PID: CDP (0x2000) 
+#
+# The packets are always sent to mac address 01:00:0c:cc:cc:cc
+cdp_bpf_filter = 'ether host 01:00:0c:cc:cc:cc and ether[16:4] = 0x0300000C and ether[20:2] == 0x2000'
+
+sniff(filter=cdp_bpf_filter, prn=print_cdp_info)
